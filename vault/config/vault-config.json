@@ -1,0 +1,21 @@
+{
+  "listener": [
+    {
+      "tcp": {
+        "address": "0.0.0.0:8200",
+        "tls_disable": 1
+      }
+    }
+  ],
+  "storage": {
+    "postgresql": {
+      "connection_url": "postgres://vault:vaultpwd@192.168.0.121:6432,192.168.0.121:6433/vault_secrets?sslmode=disable",
+      "table": "vault_kv_store",
+      "max_parallel": "128",
+      "ha_enabled": "true"
+    }
+  },
+  "ui": true,
+  "api_addr": "http://0.0.0.0:8200"
+}
+

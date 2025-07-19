@@ -1,0 +1,136 @@
+services:
+  vault:
+    image: "bitnami/vault:${VAULT_TAG:-latest}"
+    container_name: vault
+    environment:
+      VAULT_TOKEN_FILE: /vault/root/token
+      VAULT_ADDR: http://127.0.0.1:8200
+      VAULT_API_ADDR: http://127.0.0.1:8200
+      HOME: /vault/root
+    ports:
+      - "8200:8200"
+    restart: unless-stopped
+    volumes:
+      - ./vault/config:/vault/config
+      - ./vault/data:/vault/data
+      - ./vault/root:/vault/root
+      - ./vault/ca:/vault/ca
+      - ./vault/policies:/vault/policies
+    cap_add:
+      - IPC_LOCK
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    command: server -config=/vault/config/vault-config.json
+    depends_on:
+      - pg-1
+      - pg-2
+
+  vault-init:
+    image: "bitnami/vault:${VAULT_TAG:-latest}"
+    container_name: vault-init
+    entrypoint: ["/bin/sh", "-c", "/vault/scripts/vault-init.sh"]
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_API_ADDR: http://127.0.0.1:8200
+      HOME: /vault/root
+    volumes:
+      - ./vault/scripts/vault-init.sh:/vault/scripts/vault-init.sh
+      - ./vault/keys:/vault/keys
+      - ./vault/root:/vault/root
+    depends_on:
+      vault:
+        condition: service_started
+
+  pg-1:
+    container_name: postgres_1
+    image: docker.io/bitnami/postgresql-repmgr:14.9.0
+    ports:
+      - "6432:5432"
+    volumes:
+      - pg_1_data:/bitnami/postgresql
+      - ./pg/create_extensions.sql:/docker-entrypoint-initdb.d/create_extensions.sql:ro
+      - ./pg/init_tables.sql:/docker-entrypoint-initdb.d/init_tables.sql:ro
+    environment:
+      - POSTGRESQL_POSTGRES_PASSWORD=adminpwd
+      - POSTGRESQL_USERNAME=vault
+      - POSTGRESQL_PASSWORD=vaultpwd
+      - POSTGRESQL_DATABASE=vault_secrets
+      - REPMGR_PASSWORD=repmgrpassword
+      - REPMGR_PRIMARY_HOST=pg-1
+      - REPMGR_PRIMARY_PORT=5432
+      - REPMGR_PARTNER_NODES=pg-1,pg-2:5432
+      - REPMGR_NODE_NAME=pg-1
+      - REPMGR_NODE_NETWORK_NAME=pg-1
+      - REPMGR_PORT_NUMBER=5432
+      - REPMGR_CONNECT_TIMEOUT=1
+      - REPMGR_RECONNECT_ATTEMPTS=2
+      - REPMGR_RECONNECT_INTERVAL=1
+      - REPMGR_MASTER_RESPONSE_TIMEOUT=5
+    restart: unless-stopped
+
+  pg-2:
+    container_name: postgres_2
+    image: docker.io/bitnami/postgresql-repmgr:14.9.0
+    ports:
+      - "6433:5432"
+    volumes:
+      - pg_2_data:/bitnami/postgresql
+      - ./pg/create_extensions.sql:/docker-entrypoint-initdb.d/create_extensions.sql:ro
+      - ./pg/init_tables.sql:/docker-entrypoint-initdb.d/init_tables.sql:ro
+    environment:
+      - POSTGRESQL_POSTGRES_PASSWORD=adminpwd
+      - POSTGRESQL_USERNAME=vault
+      - POSTGRESQL_PASSWORD=vaultpwd
+      - POSTGRESQL_DATABASE=vault_secrets
+      - REPMGR_PASSWORD=repmgrpassword
+      - REPMGR_PRIMARY_HOST=pg-1
+      - REPMGR_PRIMARY_PORT=5432
+      - REPMGR_PARTNER_NODES=pg-1,pg-2:5432
+      - REPMGR_NODE_NAME=pg-2
+      - REPMGR_NODE_NETWORK_NAME=pg-2
+      - REPMGR_PORT_NUMBER=5432
+      - REPMGR_CONNECT_TIMEOUT=1
+      - REPMGR_RECONNECT_ATTEMPTS=2
+      - REPMGR_RECONNECT_INTERVAL=1
+      - REPMGR_MASTER_RESPONSE_TIMEOUT=5
+    restart: unless-stopped
+
+  pg_exporter-1:
+    container_name: pg_exporter_1
+    image: prometheuscommunity/postgres-exporter:v0.11.1
+    command: --log.level=debug
+    environment:
+      DATA_SOURCE_URI: "pg-1:5432/vault_secrets?sslmode=disable"
+      DATA_SOURCE_USER: vault
+      DATA_SOURCE_PASS: vaultpwd
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./pg/queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    ports:
+      - "9187:9187"
+    restart: unless-stopped
+    depends_on:
+      - pg-1
+
+  pg_exporter-2:
+    container_name: pg_exporter_2
+    image: prometheuscommunity/postgres-exporter:v0.11.1
+    command: --log.level=debug
+    environment:
+      DATA_SOURCE_URI: "pg-2:5432/vault_secrets?sslmode=disable"
+      DATA_SOURCE_USER: vault
+      DATA_SOURCE_PASS: vaultpwd
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./pg/queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    ports:
+      - "9188:9187"
+    restart: unless-stopped
+    depends_on:
+      - pg-2
+
+volumes:
+  pg_1_data:
+  pg_2_data:

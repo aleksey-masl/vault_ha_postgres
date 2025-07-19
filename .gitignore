@@ -1,0 +1,5 @@
+consul
+vault/ca/*
+vault/data/*
+vault/keys/*
+vault/root/*
