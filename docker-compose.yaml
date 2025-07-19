@@ -2,11 +2,10 @@ services:
   vault:
     image: "bitnami/vault:${VAULT_TAG:-latest}"
     container_name: vault
+    user: "$UID:$GID"
     environment:
-      VAULT_TOKEN_FILE: /vault/root/token
       VAULT_ADDR: http://127.0.0.1:8200
       VAULT_API_ADDR: http://127.0.0.1:8200
-      HOME: /vault/root
     ports:
       - "8200:8200"
       - "8201:8201"         # expose cluster порт
@@ -14,7 +13,6 @@ services:
     volumes:
       - ./vault/config:/vault/config
       - ./vault/data:/vault/data
-      - ./vault/root:/vault/root
       - ./vault/ca:/vault/ca
       - ./vault/policies:/vault/policies
     cap_add:
@@ -32,15 +30,14 @@ services:
     image: "bitnami/vault:${VAULT_TAG:-latest}"
     container_name: vault-init
     entrypoint: ["/bin/sh", "-c", "/vault/scripts/vault-init.sh"]
+    restart: unless-stopped
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_API_ADDR: http://vault:8200
-      HOME: /vault/root
       MY_VAULT_TOKEN: ${MY_VAULT_TOKEN:-test}
     volumes:
       - ./vault/scripts/vault-init.sh:/vault/scripts/vault-init.sh
       - ./vault/keys:/vault/keys
-      - ./vault/root:/vault/root
     depends_on:
       vault:
         condition: service_started
