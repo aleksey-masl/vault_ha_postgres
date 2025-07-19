@@ -14,7 +14,7 @@
   },
   "storage_destination": {
     "postgresql": {
-      "connection_url": "postgres://vault:vaultpwd@pg-1:5432,pg-2:5432/vault_secrets?sslmode=disable",
+      "connection_url": "postgres://vault:vaultpwd@192.168.0.121:6432,192.168.0.121:6433/vault_secrets?sslmode=disable",
       "table": "vault_kv_store",
       "max_parallel": 128,
       "ha_enabled": true
