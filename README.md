@@ -12,8 +12,6 @@ vault operator migrate -config=/vault/config/mgr.json
 
 vault/data - for data
 
-/vault/root - HOME directory for save token 
-
 /vault/ca - for CA kubernetes cluster
 
 /vault/policies - for policies
